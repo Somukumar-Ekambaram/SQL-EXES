@@ -1,385 +1,764 @@
 -- 1.  Who is the highest paid C Programmer?
 
-select st.name, p.salary from programmer p
-	inner join studies st on st.stud_id = p.stud_id
-	inner join dev_in di1 on di1.dev_in_id = p.prof1
-	inner join dev_in di2 on di2.dev_in_id = p.prof2 
-where (di2.name  = 'C' or di1.name = 'C')
-order by p.salary desc limit 1;
+SELECT
+	st.name,
+	p.salary
+FROM
+	programmer p
+INNER JOIN studies st ON
+	st.id = p.stud_id
+INNER JOIN programmer_prof_xref pp ON
+	pp.programmer_id = p.id
+INNER JOIN dev_in di ON
+	di.id = pp.dev_in_id
+WHERE
+	di.name = 'C'
+ORDER BY
+	p.salary DESC
+LIMIT 1;
+
 
 -- 2.  Who is the highest paid female COBOL Programmer?
 
-select st.name, p.salary from programmer p
-	inner join studies st on st.stud_id = p.stud_id
-	inner join dev_in di1 on di1.dev_in_id = p.prof1
-	inner join dev_in di2 on di2.dev_in_id = p.prof2
-where p.sex = 'F' and (di2.name  = 'COBOL' or di1.name = 'COBOL')
-order by p.salary desc limit 1;
+SELECT
+	st.name,
+	p.salary
+FROM
+	programmer p
+INNER JOIN studies st ON
+	st.id = p.stud_id
+INNER JOIN programmer_prof_xref pp ON
+	pp.programmer_id = p.id
+INNER JOIN dev_in di ON
+	di.id = pp.dev_in_id
+WHERE
+	p.sex = 'F'
+	AND di.name = 'COBOL'
+ORDER BY
+	p.salary DESC
+LIMIT 1;
+
 
 
 -- 3. Display the names of the highest paid programmer for each language (Prof1)
 
-with max_salaries as (
-	select p.prof1  as prof1, max(salary) as max_salary from programmer p
-	group by p.prof1
-) 
-select 
-	di1.name AS language, 
-    st.name AS programmer_name, 
-    ms.max_salary
-from max_salaries ms
-	inner join programmer p on p.prof1 = ms.prof1 and ms.max_salary = p.salary
-	inner join dev_in di1 on di1.dev_in_id  = p.prof1
-	inner join studies st on st.stud_id = p.stud_id
+WITH max_salaries AS (
+SELECT
+	pp.dev_in_id,
+	MAX(p.salary) AS max_salary
+FROM
+	programmer p
+INNER JOIN programmer_prof_xref pp ON
+	pp.programmer_id = p.id
+GROUP BY
+	pp.dev_in_id
+)
+SELECT
+	di.name AS language,
+	st.name AS programmer_name,
+	ms.max_salary
+FROM
+	max_salaries ms
+INNER JOIN programmer_prof_xref pp ON
+	pp.dev_in_id = ms.dev_in_id
+INNER JOIN programmer p ON
+	p.id = pp.programmer_id
+	AND p.salary = ms.max_salary
+INNER JOIN dev_in di ON
+	di.id = ms.dev_in_id
+INNER JOIN studies st ON
+	st.id = p.stud_id;
+
 
 -- 4. Who is the least experienced programmer?
 	
-select st.name ,min(timestampdiff(year, p.doj, now())) as least_exp 
-	from programmer p
-	inner join studies st on st.stud_id = p.stud_id
-group by st.name 
-order by least_exp 
-limit 1;
+SELECT
+	st.name,
+	TIMESTAMPDIFF(YEAR,
+	p.doj,
+	CURDATE()) AS least_exp
+FROM
+	programmer p
+INNER JOIN studies st ON
+	st.id = p.stud_id
+ORDER BY
+	least_exp ASC
+LIMIT 1;
+
 
 -- 5. Who is the most experienced programmer?
 
-select st.name ,max(timestampdiff(year, p.doj, now())) as most_exp 
-	from programmer p
-	inner join studies st on st.stud_id = p.stud_id
-group by st.name 
-order by most_exp desc
-limit 1;
+SELECT
+	st.name,
+	TIMESTAMPDIFF(YEAR,
+	p.doj,
+	CURDATE()) AS most_exp
+FROM
+	programmer p
+INNER JOIN studies st ON
+	st.id = p.stud_id
+ORDER BY
+	most_exp DESC
+LIMIT 1;
+
 
 -- 6. Which language is known by only one programmer.
 
-select di.name as language
-from dev_in di
-inner join (
-    select prof1 as dev_in_id from programmer
-    union all
-    select prof2 as dev_in_id from programmer
-) as combined on di.dev_in_id = combined.dev_in_id
-group by di.name
-having count(combined.dev_in_id) = 1;
-
+SELECT
+	di.name AS language
+FROM
+	dev_in di
+INNER JOIN (
+	SELECT
+		pp.dev_in_id
+	FROM
+		programmer_prof_xref pp
+	GROUP BY
+		pp.dev_in_id
+	HAVING
+		COUNT(pp.programmer_id) = 1
+) unique_languages ON
+	di.id = unique_languages.dev_in_id;
 
 -- 7. Who is the above programmer? 
-select st.name, max(timestampdiff(year, p.dob, now())) as age from programmer p
-	inner join studies st on st.stud_id = p.stud_id
-group by st.name
-order by age desc 
-limit 1;
+
+SELECT
+	st.name,
+	MAX(timestampdiff(year, p.dob, NOW())) AS age
+FROM
+	programmer p
+INNER JOIN studies st ON
+	st.id = p.stud_id
+GROUP BY
+	st.name
+ORDER BY
+	age desc
+LIMIT 1;
 
 
 
 -- 8. Who is the youngest programmer knowing dBase?
-select st.name, min(timestampdiff(year, p.dob, now())) as age from programmer p
-	inner join studies st on st.stud_id = p.stud_id
-	where p.prof1 in (select dev_in_id from dev_in where name = 'Dbase') or p.prof2 in (select dev_in_id from dev_in where name = 'Dbase')
-group by st.name
-order by age 
-limit 1;
+
+SELECT
+	st.name,
+	MIN(TIMESTAMPDIFF(YEAR, p.dob, CURDATE())) AS age
+FROM
+	programmer p
+INNER JOIN studies st ON
+	st.id = p.stud_id
+INNER JOIN programmer_prof_xref pp ON
+	pp.programmer_id = p.id
+INNER JOIN dev_in di ON
+	di.id = pp.dev_in_id
+WHERE
+	di.name = 'dBase'
+GROUP BY
+	st.name
+ORDER BY
+	age ASC
+LIMIT 1;
+
 
 -- 9. Which female programmer earns more than 3000/- but does not know C, C++, Oracle   or Dbase?
 
-select 
-	st.name, 
-	p.salary, 
-	(select name from dev_in where dev_in_id = p.prof1) as prof1, 
-	(select name from dev_in where dev_in_id = p.prof2) as prof2 
-from programmer p
-	inner join studies st on st.stud_id = p.stud_id 
-where p.salary >= 3000 and p.sex = 'F' and 
-(p.prof1 not in (select dev_in_id from dev_in where name in ('C', 'C++', 'Oracle', 'Dbase')))
-and (p.prof2 not in (select dev_in_id from dev_in where name in ('C', 'C++', 'Oracle', 'Dbase')));
-
+SELECT
+	st.name,
+	p.salary
+FROM
+	programmer p
+INNER JOIN studies st ON
+	st.id = p.stud_id
+WHERE
+	p.salary > 3000
+	AND p.sex = 'F'
+	AND NOT EXISTS (
+	SELECT
+		1
+	FROM
+		programmer_prof_xref pp
+	INNER JOIN dev_in di ON
+		di.id = pp.dev_in_id
+	WHERE
+		pp.programmer_id = p.id
+		AND di.name IN ('C', 'C++', 'Oracle', 'dBase')
+  );
 
 -- 10. Which institute has the greatest number of students?
 
-select p.place_name, count(s.name) as greatest from studies s
-	inner join place p on p.place_id = s.place_id
-group by p.place_name order by greatest desc limit 1;
+SELECT
+	pl.name AS institute_name,
+	COUNT(st.id) AS student_count
+FROM
+	studies st
+INNER JOIN place pl ON
+	pl.id = st.place_id
+GROUP BY
+	pl.name
+ORDER BY
+	student_count DESC
+LIMIT 1;
+
 
 -- 11. Which course has been done by most of the students?
 
-select c.course_name, count(s.name) as most from studies s
-	inner join course c on c.course_id = s.course_id 
-group by c.course_name order by most desc limit 1;
+SELECT
+	c.name AS course_name,
+	COUNT(s.id) AS student_count
+FROM
+	studies s
+INNER JOIN course c ON
+	c.id = s.id
+GROUP BY
+	c.name
+ORDER BY
+	student_count DESC
+LIMIT 1;
+
 
 -- 12. Display the name of the institute and course which has course fee below average.
 
-select p.place_name, c.course_name, avg(s.course_fee) as avg_course_fee from studies s
-	inner join course c on c.course_id = s.course_id 
-	inner join place p on p.place_id = s.place_id
-group by p.place_name, c.course_name;
-
+SELECT
+	p.name,
+	c.name,
+	AVG(s.course_fee) as avg_course_fee
+FROM
+	studies s
+INNER JOIN stud_course_xref sx ON
+	sx.stud_id = s.id
+INNER JOIN course c ON
+	c.id = sx.course_id
+INNER JOIN place p ON
+	p.id = s.place_id
+GROUP BY
+	p.name,
+	c.name;
 
 -- 13. Which is the costliest course?
 
-select s.name, c.course_name, s.course_fee from studies s
-	inner join course c on c.course_id = s.course_id
-order by s.course_fee desc limit 1;
+SELECT
+	s.name,
+	c.name,
+	s.course_fee
+FROM
+	studies s
+INNER JOIN stud_course_xref sx ON
+	sx.stud_id = s.id
+INNER JOIN course c ON
+	c.id = sx.course_id
+order by
+	s.course_fee DESC
+LIMIT 1;
+
 
 -- 14. Which institute conducts the costliest course?
 
-select p.place_name, c.course_name, s.course_fee from studies s
-	inner join course c on c.course_id = s.course_id
-	inner join place p on p.place_id = s.place_id
-order by s.course_fee desc limit 1;
+SELECT
+	p.name,
+	c.name,
+	s.course_fee
+FROM
+	studies s
+INNER JOIN stud_course_xref sx ON
+	sx.stud_id = s.id
+INNER JOIN course c ON
+	c.id = sx.course_id
+INNER JOIN place p ON
+	p.id = s.place_id
+ORDER BY
+	s.course_fee DESC
+LIMIT 1;
 
 -- 15. Which course has below average number of students?
 
-with coursestudentcounts as (
-    select c.course_id, c.course_name as course_name, count(s.stud_id) as num_students
-    from course c
-    left join studies s on s.course_id = c.course_id
-    group by c.course_id, c.course_name
+WITH coursestudentcounts AS (
+SELECT
+	c.id,
+	c.name AS course_name,
+	count(s.id) AS num_students
+FROM
+	course c
+INNER JOIN stud_course_xref sx ON
+	sx.course_id = c.id
+LEFT JOIN studies s on
+	s.id = sx.stud_id
+GROUP BY
+	c.id,
+	c.name
 ),
-averagestudentcount as (
-    select avg(num_students) as avg_num_students
-    from coursestudentcounts
+averagestudentcount AS (
+SELECT
+	AVG(num_students) AS avg_num_students
+FROM
+	coursestudentcounts
 )
-select c.course_name
-from coursestudentcounts c
-cross join averagestudentcount avg
-where c.num_students < avg.avg_num_students;
+SELECT
+	c.course_name
+FROM
+	coursestudentcounts c
+CROSS JOIN averagestudentcount AVG
+WHERE
+	c.num_students < AVG.avg_num_students;
 
 -- 16.  Which institute conducts the above course? // Same as 14th
 
-select p.place_name, c.course_name, s.course_fee from studies s
-	inner join course c on c.course_id = s.course_id
-	inner join place p on p.place_id = s.place_id
-order by s.course_fee desc limit 1;
+SELECT
+	p.name,
+	c.name,
+	s.course_fee
+FROM
+	studies s
+INNER JOIN stud_course_xref sx ON
+	sx.stud_id = s.id
+INNER JOIN course c ON
+	c.id = sx.course_id
+INNER JOIN place p ON
+	p.id = s.place_id
+ORDER BY
+	s.course_fee DESC
+LIMIT 1;
 
 -- 17. Display the names of the course whose fees are within 1000 (+ or -) of the average fee.
 
-with AvgFee as (
-	select avg(course_fee) as avg_fee from studies
+WITH AvgFee AS (
+SELECT
+	AVG(course_fee) AS avg_fee
+FROM
+	studies
 )
-select c.course_name, s.course_fee from studies s
-	inner join course c on c.course_id = s.course_id 
-cross join AvgFee af
-where s.course_fee between avg_fee - 1000 and avg_fee + 1000;
+SELECT
+	c.name,
+	s.course_fee
+FROM
+	studies s
+INNER JOIN stud_course_xref sx ON
+	sx.stud_id = s.id
+INNER JOIN course c ON
+	c.id = sx.course_id
+CROSS JOIN AvgFee af
+WHERE
+	s.course_fee BETWEEN avg_fee - 1000 AND avg_fee + 1000;
 
 
 -- 18. Which package has the highest development cost?
 
-select title, dev_cost from software where dev_cost = (select max(dev_cost) from software);
+SELECT
+	title,
+	dev_cost
+FROM
+	software
+WHERE
+	dev_cost = (
+	SELECT
+		MAX(dev_cost)
+	FROM
+		software);
 
 -- 19. Which package has the lowest selling cost?
 
-select title, dev_cost from software where dev_cost = (select min(dev_cost) from software);
+SELECT title, dev_cost FROM software WHERE dev_cost = (SELECT MIN(dev_cost) FROM software);
 
 -- 20. Who developed the package which has sold the least number of copies?
 
-select st.name, s.title, s.sold_qty from software s
-	inner join studies st on st.stud_id = s.stud_id 
-where s.sold_qty = (select min(sold_qty) from software);
+SELECT
+	st.name,
+	s.title,
+	s.sold_qty
+FROM
+	software s
+INNER JOIN studies st ON
+	st.id = s.stud_id
+WHERE
+	s.sold_qty = (
+	SELECT
+		MIN(sold_qty)
+	FROM
+		software);
 	
 
 -- 21. Which language was used to develop the package which has the highest sales amount?
 
-select di.name, s.title, s.selling_cost from software s
-	inner join dev_in di on di.dev_in_id = s.dev_in_id 
-where s.selling_cost = (select max(selling_cost) from software);
+SELECT
+	di.name,
+	s.title,
+	s.selling_cost
+FROM
+	software s
+INNER JOIN dev_in di ON
+	di.id = s.dev_in_id
+WHERE
+	s.selling_cost = (
+	SELECT
+		max(selling_cost)
+	FROM
+		software);
 
 
 -- 22.  How many copies of the package that has the least difference between development and selling cost were sold?
 
-with packagecostdifference as (
-    select soft_id, abs(dev_cost - selling_cost) as cost_difference
-    from software
-    order by cost_difference asc
-    limit 1
+WITH packagecostdifference AS (
+SELECT
+	id,
+	ABS(dev_cost - selling_cost) AS cost_difference
+FROM
+	software
+ORDER BY
+	cost_difference ASC
+LIMIT 1
 )
-select *
-from software
-where soft_id = (select soft_id from packagecostdifference);
+SELECT
+	*
+FROM
+	software
+WHERE
+	id = (
+	SELECT
+		id
+	FROM
+		packagecostdifference);
 
 -- 23.  Which is the costliest package developed in Pascal?
 
-with PascalDevPackage as (
-	select s.title, di.name, s.dev_cost from software s
-		inner join dev_in di on di.dev_in_id = s.dev_in_id 
-	where di.name = 'Pascal'
+WITH PascalDevPackage AS (
+SELECT
+	s.title,
+	di.name,
+	s.dev_cost
+FROM
+	software s
+INNER JOIN dev_in di ON
+	di.id = s.dev_in_id
+WHERE
+	di.name = 'Pascal'
 )
-select * from PascalDevPackage where dev_cost = (select max(dev_cost) from PascalDevPackage);
-
+SELECT
+	*
+FROM
+	PascalDevPackage
+WHERE
+	dev_cost = (
+	SELECT
+		MAX(dev_cost)
+	FROM
+		PascalDevPackage);
 
 -- 24. Which language was used to develop the most number of packages?
 
-select di.name, count(s.title) as package_count from software s
-	inner join dev_in di on di.dev_in_id = s.dev_in_id
-group by di.name order by package_count desc limit 1;
+SELECT
+	di.name,
+	COUNT(s.title) AS package_count
+FROM
+	software s
+INNER JOIN dev_in di ON
+	di.id = s.dev_in_id
+GROUP BY
+	di.name
+ORDER BY
+	package_count DESC
+LIMIT 1;
 
 -- 25.  Which Programmer has developed the highest number of packages?
 
-select st.name, count(s.title) as package_count from software s
-	inner join studies st on st.stud_id = s.stud_id
-group by st.name order by package_count desc limit 1;
+SELECT
+	st.name,
+	COUNT(s.title) As package_count
+FROM
+	software s
+INNER JOIN studies st ON
+	st.id = s.stud_id
+GROUP BY
+	st.name
+ORDER BY
+	package_count DESC
+LIMIT 1;
 
 -- 26.  Who is the author of the costliest package?
 
-select st.name, s.title as package_count from software s
-	inner join studies st on st.stud_id = s.stud_id
-where dev_cost = (select max(dev_cost) from software);
+SELECT
+	st.name,
+	s.title AS package_count
+FROM
+	software s
+INNER JOIN studies st ON
+	st.id = s.stud_id
+WHERE
+	dev_cost = (
+	SELECT
+		MAX(dev_cost)
+	FROM
+		software);
 
 -- 27.  Display the names of packages which have been sold less than the average number of packages.
 
-with average_sold_qty as (
-    select avg(sold_qty) as avg_sold_qty
-    from software
+WITH AVERAGE_SOLD_QTY AS (
+SELECT
+	AVG(sold_qty) AS avg_sold_qty
+FROM
+	software
 )
-select title
-from software
-where sold_qty < (select avg_sold_qty from average_sold_qty);
+SELECT
+	title
+FROM
+	software
+WHERE
+	sold_qty < (
+	SELECT
+		avg_sold_qty
+	FROM
+		AVERAGE_SOLD_QTY);
+
 
 -- 28.  Who are the authors of packages which have recovered more than double the development cost?
 
-select distinct st.name, s.title from software s
-	inner join studies st on st.stud_id = s.stud_id 
-where s.selling_cost > (s.dev_cost * 2);
-
+SELECT
+	DISTINCT st.name,
+	s.title
+FROM
+	software s
+INNER JOIN studies st ON
+	st.id = s.stud_id
+WHERE
+	s.selling_cost > (s.dev_cost * 2);
 
 -- 29.  Display the programmer names and the cheapest package developed by them in each language?
 
-with minPackages as (
-    select di.name as lang, st.name as programmer, s.title as package, s.dev_cost, 
-           row_number() over (partition by di.name order by s.dev_cost asc) as rn    
-    from software s
-    inner join studies st on s.stud_id = st.stud_id 
-    inner join dev_in di on s.dev_in_id = di.dev_in_id
+WITH minPackages AS (
+SELECT
+	di.name AS lang,
+	st.name AS programmer,
+	s.title AS package,
+	s.dev_cost,
+	ROW_NUMBER() OVER (PARTITION BY di.name
+ORDER BY
+	s.dev_cost ASC) AS rn
+FROM
+	software s
+INNER JOIN studies st ON
+	s.stud_id = st.id
+INNER JOIN dev_in di ON
+	s.dev_in_id = di.id
 )
-select lang, programmer, package, dev_cost
-from minPackages 
-where rn = 1;
+SELECT
+	lang,
+	programmer,
+	package,
+	dev_cost
+FROM
+	minPackages
+WHERE
+	rn = 1;
+
 
 -- 30. Display the language used by each programmer to develop the highest selling and lowest selling package.
 
-with highestSelling as (
-    select di.name as lang, st.name as programmer, s.title as package, s.selling_cost,
-           row_number() over (partition by st.name order by s.selling_cost desc) as rn_highest
-    from software s
-    inner join studies st on s.stud_id = st.stud_id
-    inner join dev_in di on s.dev_in_id = di.dev_in_id
+WITH highestSelling AS (
+SELECT
+	di.name AS lang,
+	st.name AS programmer,
+	s.title AS package,
+	s.selling_cost,
+	ROW_NUMBER() OVER (PARTITION BY st.name
+ORDER BY
+	s.selling_cost DESC) AS rn_highest
+FROM
+	software s
+INNER JOIN studies st ON
+	s.stud_id = st.id
+INNER JOIN dev_in di ON
+	s.dev_in_id = di.id
 ),
-lowestSelling as (
-    select di.name as lang, st.name as programmer, s.title as package, s.selling_cost,
-           row_number() over (partition by st.name order by s.selling_cost asc) as rn_lowest
-    from software s
-    inner join studies st on s.stud_id = st.stud_id
-    inner join dev_in di on s.dev_in_id = di.dev_in_id
+lowestSelling AS (
+SELECT
+	di.name AS lang,
+	st.name AS programmer,
+	s.title AS package,
+	s.selling_cost,
+	ROW_NUMBER() OVER (PARTITION BY st.name
+ORDER BY
+	s.selling_cost ASC) AS rn_lowest
+FROM
+	software s
+INNER JOIN studies st ON
+	s.stud_id = st.id
+INNER JOIN dev_in di ON
+	s.dev_in_id = di.id
 )
-select
-    hs.programmer,
-    hs.lang as highest_selling_lang,
-    hs.package as highest_selling_package,
-    hs.selling_cost as highest_selling_cost,
-    ls.lang as lowest_selling_lang,
-    ls.package as lowest_selling_package,
-    ls.selling_cost as lowest_selling_cost
-from
-    highestSelling hs
-    inner join lowestSelling ls on hs.programmer = ls.programmer
-where
-    hs.rn_highest = 1 and ls.rn_lowest = 1
-order by
-    hs.programmer;
+SELECT
+	hs.programmer,
+	hs.lang AS highest_selling_lang,
+	hs.package AS highest_selling_package,
+	hs.selling_cost AS highest_selling_cost,
+	ls.lang AS lowest_selling_lang,
+	ls.package AS lowest_selling_package,
+	ls.selling_cost AS lowest_selling_cost
+FROM
+	highestSelling hs
+INNER JOIN lowestSelling ls ON
+	hs.programmer = ls.programmer
+WHERE
+	hs.rn_highest = 1
+	AND ls.rn_lowest = 1
+ORDER BY
+	hs.programmer;
 
 -- 31. Who is the youngest male programmer born in 1965?	
 
-select s.name, p.dob from programmer p 
-	inner join studies s on s.stud_id = p.stud_id
-where year(p.dob) = 1965 and p.sex = 'M'
-order by p.dob desc limit 1;
-
+SELECT
+	s.name,
+	p.dob
+FROM
+	programmer p
+INNER JOIN studies s ON
+	s.id = p.stud_id
+WHERE
+	YEAR(p.dob) = 1965
+	AND p.sex = 'M'
+ORDER BY
+	p.dob DESC
+LIMIT 1;
 
 -- 32. Who is the oldest female programmer born 1n 1965?
 
-select s.name, p.dob from programmer p 
-	inner join studies s on s.stud_id = p.stud_id
-where year(p.dob) = 1965 and p.sex = 'F'
-order by p.dob desc limit 1;
+SELECT
+	s.name,
+	p.dob
+FROM
+	programmer p
+INNER JOIN studies s ON
+	s.id = p.stud_id
+WHERE
+	YEAR(p.dob) = 1965
+	AND p.sex = 'F'
+ORDER BY
+	p.dob DESC
+LIMIT 1;
 
 
 -- 33. In which year were the most number of programmers born?
 
-select year(p.dob) as birth_year, count(*) as num_programmers
-from programmer p
-group by year(p.dob)
-order by num_programmers desc
-limit 1;
-
+SELECT
+	YEAR(p.dob) AS birth_year,
+	COUNT(*) AS num_programmers
+FROM
+	programmer p
+GROUP BY
+	YEAR(p.dob)
+ORDER BY
+	num_programmers DESC
+LIMIT 1;
 
 -- 34. In which month did the most number of programmers join?
 
-select month(p.doj) as join_month, count(*) as num_programmers
-from programmer p
-group by month(p.doj)
-order by num_programmers desc
-limit 1;
+SELECT
+	MONTH(p.doj) AS join_month,
+	COUNT(*) AS num_programmers
+FROM
+	programmer p
+GROUP BY
+	MONTH(p.doj)
+ORDER BY
+	num_programmers DESC
+LIMIT 1;
 
 -- 35. In which language are most of the programmers proficient?
 
-with Proficiencies as (
-    select di1.name as language, count(*) as proficiency_count
-    from programmer p
-    	inner join dev_in di1 on di1.dev_in_id = p.prof1
-    where p.prof1 is not null
-    group by p.prof1
-    union all
-    select di2.name as language, count(*) as proficiency_count
-    from programmer p
-    	inner join dev_in di2 on di2.dev_in_id = p.prof2
-    where p.prof2 is not null
-    group by p.prof2
+WITH Proficiencies AS (
+SELECT
+	di1.name AS language,
+	COUNT(*) AS proficiency_count
+FROM
+	programmer p
+INNER JOIN programmer_prof_xref px ON
+	px.programmer_id = p.id
+INNER JOIN dev_in di1 ON
+	di1.id = px.dev_in_id
+WHERE
+	px.dev_in_id IS NOT NULL
+GROUP BY
+	px.dev_in_id
 )
-select language, sum(proficiency_count) as total_programmers
-from Proficiencies
-group by language
-order by total_programmers desc
-limit 1;
+SELECT
+	language,
+	SUM(proficiency_count) AS total_programmers
+FROM
+	Proficiencies
+GROUP BY
+	language
+ORDER BY
+	total_programmers DESC
+LIMIT 1;
 
 -- 36.  Who are the male programmers earning below the average salary of the female programmers?
 
-with FemaleAvgSalary as (
-    select avg(p.salary) as avg_female_salary
-    from programmer p
-    where p.sex = 'F'
+WITH FemaleAvgSalary AS (
+SELECT
+	AVG(p.salary) AS avg_female_salary
+FROM
+	programmer p
+WHERE
+	p.sex = 'F'
 ),
-MaleBelowAvgFemaleSalary as (
-    select *
-    from programmer p
-    cross join FemaleAvgSalary fas
-    where p.sex = 'M' and p.salary < fas.avg_female_salary
+MaleBelowAvgFemaleSalary AS (
+SELECT
+	*
+FROM
+	programmer p
+CROSS JOIN FemaleAvgSalary fas
+WHERE
+	p.sex = 'M'
+	AND p.salary < fas.avg_female_salary
 )
-select *
-from MaleBelowAvgFemaleSalary;
+SELECT
+	*
+FROM
+	MaleBelowAvgFemaleSalary;
 
 
 -- 37. Who are the female programmers earning more than the highest paid male programmer?
 
-with highestmalesalary as (
-    select max(salary) as highest_male_salary
-    from programmer
-    where sex = 'M'
+WITH highestmalesalary AS (
+SELECT
+	MAX(salary) AS highest_male_salary
+FROM
+	programmer
+WHERE
+	sex = 'M'
 ),
-femaleabovemale as (
-    select *
-    from programmer
-    where sex = 'F'
-    and salary > (select highest_male_salary from highestmalesalary)
+femaleabovemale AS (
+SELECT
+	*
+FROM
+	programmer
+WHERE
+	sex = 'F'
+	AND salary > (
+	SELECT
+		highest_male_salary
+	FROM
+		highestmalesalary)
 )
-select *
-from femaleabovemale;
+SELECT
+	*
+FROM
+	femaleabovemale;
+
 
 -- 38. Which language has been stated as  prof1  by most of the programmers?
 
-select di.name, count(p.prof1) as most_prof1 from programmer p
-	inner join dev_in di on di.dev_in_id = p.prof1
-group by di.name 
-order by most_prof1 desc
-limit 1;
+SELECT
+    di.name,
+    COUNT(px.dev_in_id) AS most_prof1
+FROM
+    programmer p
+INNER JOIN programmer_prof_xref px ON 
+    px.programmer_id = p.id
+INNER JOIN dev_in di ON
+    di.id = px.dev_in_id
+GROUP BY
+    di.name
+ORDER BY
+    most_prof1 DESC
+LIMIT 1;
+
 	
 
 
