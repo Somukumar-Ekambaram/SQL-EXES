@@ -266,16 +266,58 @@ ORDER BY
 
 -- 13. Who are the programmers who have the same prof2.
 
-with same_prof2_programmers as (
-    select p1.stud_id as stud_id1, p2.stud_id as stud_id2, p1.prof2
-    from programmer p1
-    join programmer p2 on p1.prof2 = p2.prof2 and p1.programmer_id <> p2.programmer_id
+WITH programmer_prof2 AS (
+SELECT
+	programmer_id,
+	(
+	SELECT
+		dev_in_id
+	FROM
+		programmer_prof_xref AS sub
+	WHERE
+		sub.programmer_id = ppx.programmer_id
+	ORDER BY
+		id ASC
+	LIMIT 1 OFFSET 1) AS prof2
+FROM
+	programmer_prof_xref AS ppx
+GROUP BY
+	programmer_id
+HAVING
+	prof2 IS NOT NULL
+),
+same_prof2_programmers AS (
+SELECT
+	p1.programmer_id AS programmer1_id,
+	p2.programmer_id AS programmer2_id,
+	p1.prof2
+FROM
+	programmer_prof2 p1
+JOIN programmer_prof2 p2 
+        ON
+	p1.prof2 = p2.prof2
+	AND p1.programmer_id < p2.programmer_id
 )
-select s1.name as programmer1, s2.name as programmer2, same_prof2_programmers.prof2
-from same_prof2_programmers
-	join studies s1 on same_prof2_programmers.stud_id1 = s1.stud_id
-	join studies s2 on same_prof2_programmers.stud_id2 = s2.stud_id
-order by same_prof2_programmers.prof2, programmer1, programmer2;
+SELECT
+	s1.name AS programmer1,
+	s2.name AS programmer2,
+	dev.name AS prof2_name
+FROM
+	same_prof2_programmers spp
+JOIN programmer pr1 ON
+	spp.programmer1_id = pr1.id
+JOIN programmer pr2 ON
+	spp.programmer2_id = pr2.id
+JOIN studies s1 ON
+	pr1.stud_id = s1.id
+JOIN studies s2 ON
+	pr2.stud_id = s2.id
+JOIN dev_in dev ON
+	spp.prof2 = dev.id
+ORDER BY
+	prof2_name,
+	programmer1,
+	programmer2;
 
 -- 14. Display the total sales value of software, institute-wise.
 
@@ -315,22 +357,44 @@ JOIN (
 
 -- 16. Which language listed in Prof1 and Prof2 has not been used to develop any package.
 
-with all_languages as (
-    select distinct prof1 as language from programmer
-    union
-    select distinct prof2 as language from programmer
+WITH prof_languages AS (
+SELECT
+	DISTINCT 
+        dev_in_id
+FROM
+	programmer_prof_xref
+WHERE
+	programmer_id IN (
+	SELECT
+		DISTINCT programmer_id
+	FROM
+		programmer_prof_xref
+    )
 ),
-used_languages as (
-    select distinct prof1 as language from programmer p
-    join software s on p.stud_id = s.stud_id
-    union
-    select distinct prof2 as language from programmer p
-    join software s on p.stud_id = s.stud_id
+used_languages AS (
+SELECT
+	DISTINCT dev_in_id
+FROM
+	software
 )
-select di.name from all_languages al
-	inner join dev_in di on di.dev_in_id = al.language
-where language not in (select language from used_languages);
-
+-- Select the dev_in_id's from Prof1 and Prof2 that are not used in any software package
+SELECT
+	dl.name AS unused_language
+FROM
+	dev_in dl
+WHERE
+	dl.id IN (
+	SELECT
+		dev_in_id
+	FROM
+		prof_languages)
+	AND dl.id NOT IN (
+	SELECT
+		dev_in_id
+	FROM
+		used_languages)
+ORDER BY
+	dl.name;
 
 -- 17. How much does the person who developed the highest selling package earn, and what course did he/she undergo.
 
@@ -422,26 +486,32 @@ WHERE
 
 -- 21. How many packages were developed by the students who studied in institute that charge the lowest course fee.
 
-with lowest_fee_institute as (
-    select p.id
-    from studies s
-    	inner join place p on p.id = s.place_id
-    order by s.course_fee
-    limit 1
+WITH lowest_fee_institute AS (
+SELECT
+	place_id
+FROM
+	studies
+WHERE
+	course_fee = (
+	SELECT
+		MIN(course_fee)
+	FROM
+		studies)
 ),
-students_in_lowest_fee_institute as (
-    select id
-    from studies s
-    	inner join place p on p.id = s.place_id
-    where s.place_id in (select id from lowest_fee_institute)
-),
-packages_count as (
-    select count(*) as num_packages
-    from software
-    where stud_id in (select id from students_in_lowest_fee_institute)
+students_in_lowest_fee_institute AS (
+SELECT
+	scx.stud_id
+FROM
+	stud_course_xref scx
+JOIN lowest_fee_institute lfi ON
+	scx.course_id = lfi.place_id
 )
-select num_packages
-from packages_count;
+SELECT
+	COUNT(DISTINCT s.id) AS packages_count
+FROM
+	software s
+JOIN students_in_lowest_fee_institute slfi ON
+	s.stud_id = slfi.stud_id;
 
 
 -- 22. How many packages were developed by the person who developed the cheapest package. Where did he/she study.
