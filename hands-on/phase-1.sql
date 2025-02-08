@@ -1,7 +1,7 @@
--- 1. FINd out the sellINg cost average for packages developed IN Pascal.
+-- 1. Find out the selling cost average for packages developed in Pascal.
 
 SELECT
-	AVG(software.selling_cost) AS average_of_selling_cost
+	ROUND(AVG(software.selling_cost)) AS average_of_selling_cost
 FROM
 	software
 INNER JOIN dev_in ON
@@ -9,19 +9,17 @@ INNER JOIN dev_in ON
 WHERE
 	dev_in.name = 'Pascal';
 
--- 2. Display the names AND ages of all programmers
+-- 2. Display the names and ages of all programmers
 
 SELECT
 	studies.name,
-	TIMESTAMPDIFF(YEAR,
-	programmer.dob,
-	programmer.doj) AS age
+	TIMESTAMPDIFF(YEAR, programmer.dob, CURDATE()) AS age
 FROM
 	programmer
 INNER JOIN studies ON
 	studies.id = programmer.stud_id;
 
--- 3.  Display the names of those who have dONe the DAP course 
+-- 3.  Display the names of those who have done the DAP course 
 
 SELECT
 	studies.name
@@ -38,7 +36,7 @@ WHERE
 
 SELECT MAX(sold_qty) FROM software;
 
--- 5. Display the names AND date of birth of all programmers born IN January.
+-- 5. Display the names and date of birth of all programmers born in January.
 
 SELECT
 	studies.name
@@ -53,7 +51,7 @@ WHERE
 
 SELECT MIN(course_fee) FROM studies;
 
--- 7. How many programmers have dONe the PGDCA Course?
+-- 7. How many programmers have done the PGDCA Course?
 
 SELECT
 	COUNT(studies.name)
@@ -66,10 +64,10 @@ INNER JOIN course ON
 WHERE
 	course.name = 'PGDCA';
 
--- 8. How much revenue has been earned through the sales of packages developed IN C?
+-- 8. How much revenue has been earned through the sales of packages developed in C?
 
 SELECT
-	SUM(software.selling_cost - software.dev_cost) AS revenue
+	SUM(selling_cost) - SUM(dev_cost) as total_revenue
 FROM
 	software
 INNER JOIN dev_in ON
@@ -111,11 +109,11 @@ INNER JOIN studies ON
 WHERE
 	software.selling_cost >= 2000;
 
--- 12. FINd out the number of qty which should be sold to recover the development cost of each package.
+-- 12. Find out the number of qty which should be sold to recover the development cost of each package.
 
 SELECT
 	title,
-	SUM(dev_cost / selling_cost) AS required_qty
+	ROUND(SUM(dev_cost / selling_cost)) AS required_qty
 FROM
 	software
 GROUP BY
@@ -139,7 +137,7 @@ GROUP BY
 HAVING
 	SUM(selling_cost * sold_qty) >= dev_cost;
 
--- 14. What is the price of costliest software developed IN BASIC?
+-- 14. What is the price of costliest software developed in BASIC?
 
 SELECT
 	MAX(software.dev_cost) AS costliest_basic_software
@@ -226,7 +224,7 @@ WHERE
 	WHERE
 		name IN ('COBOL', 'Pascal'));
 
--- 21. How many programmers dON’t know Pascal AND C?
+-- 21. How many programmers don’t know Pascal and C?
 
 SELECT
 	COUNT(DISTINCT p.id) AS programmers_without_pascal_and_c
@@ -269,7 +267,7 @@ WHERE
 	sex = 'F';
 
 
--- 24.Calculate the experience IN years for each programmer AND display alONg with their names IN descendINg order.
+-- 24.Calculate the experience in years for each programmer and display alONg with their names in descendINg order.
 
 SELECT
 	s.name,
@@ -310,7 +308,7 @@ WHERE
 
 -- 27.  What are the languages known by the male programmers?
 
-SELECT
+SELECT DISTINCT
 	di.name
 FROM
 	programmer_prof_xref p1
@@ -318,17 +316,6 @@ INNER JOIN programmer p ON
 	p.id = p1.programmer_id
 INNER JOIN dev_in di ON
 	di.id = p1.dev_in_id
-WHERE
-	p.sex = 'M'
-UNION 
-SELECT
-	di.name
-FROM
-	programmer_prof_xref p2
-INNER JOIN programmer p ON
-	p.id = p2.programmer_id
-INNER JOIN dev_in di ON
-	di.id = p2.dev_in_id
 WHERE
 	p.sex = 'M';
 
@@ -379,7 +366,7 @@ GROUP BY
 
 SELECT
 	st.name,
-	sum(so.selling_cost) as sale_cost
+	SUM(so.selling_cost) as sale_cost
 FROM
 	software so
 INNER JOIN studies st ON
