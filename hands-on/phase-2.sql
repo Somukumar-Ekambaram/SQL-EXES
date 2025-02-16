@@ -111,27 +111,37 @@ INNER JOIN (
 ) unique_languages ON
 	di.id = unique_languages.dev_in_id;
 
+-- Alter solution of above
+
+select 
+	d.name 
+from 
+	programmer_prof_xref px
+inner join dev_in d on d.id = px.dev_in_id 
+group by 
+	px.dev_in_id
+having 
+	count(px.programmer_id) = 1;
+
+
 -- 7. Who is the above programmer? 
 
-SELECT
-	st.name,
-	MAX(timestampdiff(year, p.dob, NOW())) AS age
-FROM
-	programmer p
-INNER JOIN studies st ON
-	st.id = p.stud_id
-GROUP BY
-	st.name
-ORDER BY
-	age desc
-LIMIT 1;
-
+WITH SingleDev AS (
+    SELECT dev_in_id 
+    FROM programmer_prof_xref
+    GROUP BY dev_in_id
+    HAVING COUNT(*) = 1
+)
+SELECT s.name FROM programmer_prof_xref px
+INNER JOIN SingleDev sd ON px.dev_in_id = sd.dev_in_id
+INNER JOIN programmer p ON p.id = px.programmer_id 
+INNER JOIN studies s ON s.id = p.stud_id;
 
 
 -- 8. Who is the youngest programmer knowing dBase?
 
 SELECT
-	st.name,
+	st.id, st.name, 
 	MIN(TIMESTAMPDIFF(YEAR, p.dob, CURDATE())) AS age
 FROM
 	programmer p
@@ -144,13 +154,13 @@ INNER JOIN dev_in di ON
 WHERE
 	di.name = 'dBase'
 GROUP BY
-	st.name
+	st.id, st.name
 ORDER BY
 	age ASC
 LIMIT 1;
 
 
--- 9. Which female programmer earns more than 3000/- but does not know C, C++, Oracle   or Dbase?
+-- 9. Which female programmer earns more than 3000/- but does not know C, C++, Oracle or Dbase?
 
 SELECT
 	st.name,
@@ -174,17 +184,18 @@ WHERE
 		AND di.name IN ('C', 'C++', 'Oracle', 'dBase')
   );
 
+
 -- 10. Which institute has the greatest number of students?
 
 SELECT
-	pl.name AS institute_name,
+	pl.id, pl.name AS institute_name,
 	COUNT(st.id) AS student_count
 FROM
 	studies st
 INNER JOIN place pl ON
 	pl.id = st.place_id
 GROUP BY
-	pl.name
+	pl.id, pl.name
 ORDER BY
 	student_count DESC
 LIMIT 1;
@@ -193,14 +204,14 @@ LIMIT 1;
 -- 11. Which course has been done by most of the students?
 
 SELECT
-	c.name AS course_name,
+	c.id, c.name AS course_name,
 	COUNT(s.id) AS student_count
 FROM
 	studies s
 INNER JOIN course c ON
 	c.id = s.id
 GROUP BY
-	c.name
+	c.id, c.name
 ORDER BY
 	student_count DESC
 LIMIT 1;
