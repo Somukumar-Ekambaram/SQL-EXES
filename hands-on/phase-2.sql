@@ -42,32 +42,23 @@ LIMIT 1;
 
 -- 3. Display the names of the highest paid programmer for each language (Prof1)
 
-WITH max_salaries AS (
-SELECT
-	pp.dev_in_id,
-	MAX(p.salary) AS max_salary
-FROM
-	programmer p
-INNER JOIN programmer_prof_xref pp ON
-	pp.programmer_id = p.id
-GROUP BY
-	pp.dev_in_id
+WITH ranked_prof1 AS (
+    SELECT id, programmer_id, dev_in_id, 
+           ROW_NUMBER() OVER (PARTITION BY programmer_id ORDER BY id) AS row_num 
+    FROM programmer_prof_xref 
+),
+salary_ranked AS (
+    SELECT rn.dev_in_id, p.id, p.stud_id, p.salary,
+           RANK() OVER (PARTITION BY rn.dev_in_id ORDER BY p.salary DESC) AS salary_rank
+    FROM ranked_prof1 rn
+    INNER JOIN programmer p ON p.id = rn.programmer_id
+    WHERE rn.row_num = 1
 )
-SELECT
-	di.name AS language,
-	st.name AS programmer_name,
-	ms.max_salary
-FROM
-	max_salaries ms
-INNER JOIN programmer_prof_xref pp ON
-	pp.dev_in_id = ms.dev_in_id
-INNER JOIN programmer p ON
-	p.id = pp.programmer_id
-	AND p.salary = ms.max_salary
-INNER JOIN dev_in di ON
-	di.id = ms.dev_in_id
-INNER JOIN studies st ON
-	st.id = p.stud_id;
+SELECT s.name, d.name, sr.salary FROM salary_ranked sr
+inner join studies s on s.id = sr.stud_id
+inner join dev_in d on d.id = sr.dev_in_id
+WHERE salary_rank = 1
+ORDER BY d.name;
 
 
 -- 4. Who is the least experienced programmer?
