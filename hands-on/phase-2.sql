@@ -228,21 +228,23 @@ LIMIT 1;
 
 -- 12. Display the name of the institute and course which has course fee below average.
 
-SELECT
-	p.name,
-	c.name,
-	AVG(s.course_fee) as avg_course_fee
-FROM
-	studies s
-INNER JOIN stud_course_xref sx ON
-	sx.stud_id = s.id
-INNER JOIN course c ON
-	c.id = sx.course_id
-INNER JOIN place p ON
-	p.id = s.place_id
-GROUP BY
-	p.name,
-	c.name;
+WITH avg_course_fee AS (
+    SELECT ROUND(AVG(course_fee)) AS avg_cf FROM studies
+)
+SELECT 
+	p.name, 
+	c.name, 
+	s.name, 
+	s.course_fee,
+	avg_course_fee.avg_cf
+FROM studies s
+	INNER JOIN place p ON s.place_id = p.id
+	INNER JOIN stud_course_xref scx ON scx.stud_id = s.id
+	INNER JOIN course c ON c.id = scx.course_id
+	JOIN avg_course_fee ON 1=1
+WHERE s.course_fee < avg_course_fee.avg_cf;
+
+
 
 -- 13. Which is the costliest course?
 
