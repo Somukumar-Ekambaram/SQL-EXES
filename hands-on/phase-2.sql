@@ -183,6 +183,15 @@ WHERE
 		pp.programmer_id = p.id
 		AND di.name IN ('C', 'C++', 'Oracle', 'dBase')
   );
+		
+-- Rewritten without subquery for above
+ 
+select p.id, s.name, p.salary from programmer p 
+	inner join studies s on s.id = p.stud_id
+	left join programmer_prof_xref px on  px.programmer_id = p.id
+	left join dev_in d on d.id = px.dev_in_id and d.name in ('C', 'C++', 'Oracle', 'Dbase')
+where p.sex = 'F' and salary > 3000 group by p.id, s.name, p.salary
+having count(d.id) = 0;
 
 
 -- 10. Which institute has the greatest number of students?
